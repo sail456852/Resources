@@ -78,4 +78,4 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 
 //I changed this SimpleWindows.cpp locally , hope you can see it in the remote server 
-//gaga 
+//gaga fuck you 
