@@ -75,3 +75,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return DefWindowProc(hwnd, message, wParam, lParam);
 }
+
+
+//I changed this SimpleWindows.cpp locally , hope you can see it in the remote server 
+//gaga 
