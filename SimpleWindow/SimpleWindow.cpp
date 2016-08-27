@@ -2,6 +2,8 @@
 #include <tchar.h>
 #include <stdio.h>
 
+#include "resource.h"
+
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
@@ -22,6 +24,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wndclass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH); // Undefined Symbol in CodeBlocks ,Works well in Visual Studio
 	wndclass.lpszMenuName = NULL;
 	wndclass.lpszClassName = szAppName;
+
+	wndclass.lpszMenuName = MAKEINTRESOURCE(IDR_MYMENU);  //Load your menu here 
+	//wndclass.hIcon = LoadIcon(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_MYICON)); //Load icon ?
+	//wndclass.hIconSm = (HICON)LoadImage(GetModuleHandle(NULL), MAKEINTRESOURCE(IDI_MYICON), IMAGE_ICON, 16, 16, 0);
+
 	if (!RegisterClass(&wndclass))
 	{
 		MessageBox(NULL, TEXT("This program requires Windows NT!"),
@@ -77,5 +84,4 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 
-//I changed this SimpleWindows.cpp locally , hope you can see it in the remote server 
-//gaga fuck you 
+ 
