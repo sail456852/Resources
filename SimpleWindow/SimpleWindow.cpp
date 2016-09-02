@@ -1,3 +1,4 @@
+#undef UNICODE
 #include <windows.h>
 #include <tchar.h>
 #include <stdio.h>
@@ -67,8 +68,15 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_CREATE:
-		// PlaySound(_T("hello.wav"),NULL,SND_FILENAME);
-		//PlaySound(TEXT("bison.wav"), NULL, SND_SYNC); //need add lib
+		HMENU hMenu, hSubMenu;  //Menu Object
+		HICON hIcon, hIconSm;
+
+		hMenu = CreateMenu();
+
+		hSubMenu = CreatePopupMenu();
+
+		AppendMenu(hSubMenu, MF_STRING, ID_FILE_EXIT, "E&xit");
+		AppendMenu(hMenu, MF_STRING | MF_POPUP, (UINT)hSubMenu, "&File");
 		return 0;
 	case WM_PAINT:
 		hdc = BeginPaint(hwnd, &ps); //HDC gets its initialisation here 
@@ -84,4 +92,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 
- 
+// The Dialog Procedure part  
+// to process message for this box . 
+
+BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
+{
+	switch (Message)
+	{
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDOK:
+			EndDialog(hwnd, IDOK);
+			break;
+		case IDCANCEL:
+			EndDialog(hwnd, IDCANCEL);
+			break;
+		}
+		break; 
+	default : 
+		return FALSE; 
+
+	}
+	return TRUE; 
+}
