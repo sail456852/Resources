@@ -1,0 +1,551 @@
+// Win32Project1.cpp : Defines the entry point for the application.
+//I just don't know why I tried to put this shit into a class , and WndProc and About function gave me shit ! 
+
+#include "stdafx.h"
+#include "Win32Project1.h"
+#include <windowsx.h>
+#include  "resource.h"
+#define MAX_LOADSTRING 100
+
+//Global Variables 
+
+HINSTANCE hInst;                                // current instance
+WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
+WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+HBRUSH hbr1, hbr2;
+HICON hIcon1, hIcon2;
+int  PlayerTurn = 1;
+int GameBoard[9] = { 0,0,0,0,0,0,0,0,0 }; //Manually sets every cells to 0 , actually , 
+int winner[3] = { 0,0,0 };
+int Winner = 0;
+const int CELL_SIZE = 100;
+
+//functions 
+
+int GetWinner (int wins[3]);
+BOOL GetGameBoarderRec (HWND hWnd, RECT * pRect);
+
+
+void DrawLine (HDC hdc, int x1, int y1, int x2, int y2);
+
+void DrawInCenter (HDC hdc, RECT * pRect, HICON hIcon);
+void ShowTurn (HWND hwnd, HDC hdc);
+ATOM                MyRegisterClass (HINSTANCE hInstance);
+int GetNumberFromSection (HWND hWnd, int x, int y);
+
+BOOL GetCellRect (HWND hWnd, int index, RECT * pRect);
+
+void ShowWinner (HWND hWnd, HDC hdc);
+LRESULT CALLBACK    WndProc (HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    About (HWND, UINT, WPARAM, LPARAM);
+
+
+
+//Functions Group 
+
+//
+//  FUNCTION: MyRegisterClass()
+//
+//  PURPOSE: Registers the window class.
+//
+ATOM MyRegisterClass (HINSTANCE hInstance)
+{
+	WNDCLASSEXW wcex;
+
+	wcex.cbSize = sizeof (WNDCLASSEX);
+
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon (hInstance, MAKEINTRESOURCE (IDI_WIN32PROJECT1));
+	wcex.hCursor = LoadCursor (nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.hbrBackground = (HBRUSH)(GetStockObject (GRAY_BRUSH));
+	wcex.lpszMenuName = MAKEINTRESOURCEW (IDC_WIN32PROJECT1);
+	wcex.lpszClassName = szWindowClass;
+	wcex.hIconSm = LoadIcon (wcex.hInstance, MAKEINTRESOURCE (IDI_SMALL));
+
+	return RegisterClassExW (&wcex);
+}
+
+//
+//   FUNCTION: InitInstance(HINSTANCE, int)
+//
+//   PURPOSE: Saves instance handle and creates main window
+//
+//   COMMENTS:
+//
+//        In this function, we save the instance handle in a global variable and
+//        create and display the main program window.
+//
+BOOL InitInstance (HINSTANCE hInstance, int nCmdShow)
+{
+	hInst = hInstance; // Store instance handle in our global variable
+
+	HWND hWnd = CreateWindowW (szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+
+	if (!hWnd)
+	{
+		return FALSE;
+	}
+
+	ShowWindow (hWnd, nCmdShow);
+	UpdateWindow (hWnd);
+
+	return TRUE;
+}
+
+//
+//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
+//
+//  PURPOSE:  Processes messages for the main window.
+//
+//  WM_COMMAND  - process the application menu
+//  WM_PAINT    - Paint the main window
+//  WM_DESTROY  - post a quit message and return
+//
+//
+BOOL GetGameBoarderRec (HWND hWnd, RECT *pRect)
+{
+	RECT rc;
+	if (GetClientRect (hWnd, &rc))
+	{
+		int Width = rc.right - rc.left;
+		int Height = rc.bottom - rc.top;
+		pRect->left = (Width - CELL_SIZE * 3) / 2;
+		pRect->top = (Height - CELL_SIZE * 3) / 2;
+		pRect->right = pRect->left + CELL_SIZE * 3;
+		pRect->bottom = pRect->top + CELL_SIZE * 3;
+		return TRUE;
+	}
+
+	SetRectEmpty (pRect);
+	return FALSE;
+
+}
+
+int GetNumberFromSection (HWND hWnd, int x, int y)
+{
+	POINT pt;
+	//Populate the structure . 
+	pt = { x,y };
+	RECT rc;
+	SetRectEmpty (&rc);
+	if (GetGameBoarderRec (hWnd, &rc))
+	{
+		if (PtInRect (&rc, pt))
+		{
+			x = pt.x - rc.left;
+			y = pt.y - rc.top;
+
+			int column = x / CELL_SIZE;
+			int row = y / CELL_SIZE;
+
+			return column + 3 * row;
+		}
+	}
+	//else return -1 to indicate this is out of the boarder 
+	return -1;
+
+}
+
+BOOL GetCellRect (HWND hWnd, int index, RECT *pRect) //pRect is a structure used to return the cell border . 
+{
+	//Get the 9 CELLS' boarder . 
+	//By calling that function , 
+	RECT BoarderRC;
+
+	SetRectEmpty (pRect);
+	//If this function succeeds ,then we have the border info stored in this struture
+	if (index < 0 || index >8)
+		return FALSE;
+
+	if (GetGameBoarderRec (hWnd, &BoarderRC))
+	{
+		//Get the row number from the variable  index ; 
+		int RowNo = index / 3;
+		//Get the column number from the variable index ; 
+		int ColumnNo = index % 3;
+
+		//Initialise the rc structure using the RowNo and ColumnNo and CELL_SiZE 
+		pRect->top = BoarderRC.top + CELL_SIZE * RowNo + 1;
+		pRect->left = BoarderRC.left + CELL_SIZE * ColumnNo + 1;
+		pRect->right = pRect->left + CELL_SIZE - 1;
+		pRect->bottom = pRect->top + CELL_SIZE - 1;
+		//return TRUE to indicate this function succeeds 
+		return TRUE;
+	}
+	else
+		return FALSE;
+}
+
+void ShowWinner (HWND hWnd, HDC hdc)
+{
+	RECT rcCell;
+	for (int i = 0; i < 3; i++)
+	{
+		GetCellRect (hWnd, winner[i], &rcCell);
+		FillRect (hdc, &rcCell, hbr1);
+	}
+
+}
+
+/*
+0 ,1, 2
+3, 4, 5
+6, 7, 8
+*/
+/*
+return 1 , 2 to indicate whether there is a winner
+return 3 , to indicate it's drwa
+return 0 to continue
+*/
+
+
+int GetWinner (int wins[3])   //I don't why there is a need to pass in an array 
+{
+	int cells[] = { 0,1,2, 3,4,5,  6,7,8,   0,3,6, 1,4,7, 2,5,8, 0,4,8, 2,4,6 };
+
+	//check for winner
+	for (int i = 0; i < ARRAYSIZE (cells); i += 3)
+	{
+		if ((0 != GameBoard[cells[i]]) && GameBoard[cells[i]] == GameBoard[cells[i + 1]] && GameBoard[cells[i]] == GameBoard[cells[i + 2]])
+		{
+			//We have a winner
+			wins[0] = cells[i];
+			wins[1] = cells[i + 1];
+			wins[2] = cells[i + 2];
+
+			return GameBoard[cells[i]];
+		}
+	}
+
+	//Next, see if we have any cells left empty
+	for (int i = 0; i < ARRAYSIZE (GameBoard); ++i)
+		if (0 == GameBoard[i])
+			return 0; //continue to play...
+
+	return 3; //it's a draw
+}
+void DrawLine (HDC hdc, int x1, int y1, int x2, int y2)
+{
+	MoveToEx (hdc, x1, y1, NULL);
+	LineTo (hdc, x2, y2);
+
+}
+
+void DrawInCenter (HDC hdc, RECT * pRect, HICON hIcon)
+{
+	//calcute the dimension parameter the windows API  
+	//Should minus the half of the icon size 
+	const int ICON_WIDTH = GetSystemMetrics (SM_CXICON);
+	const int ICON_HEIGHT = GetSystemMetrics (SM_CYICON);
+
+	int left = pRect->left + CELL_SIZE / 2 - ICON_WIDTH / 2;  //Why using 32 ? I don't know it just worked .
+	int top = pRect->top + CELL_SIZE / 2 - ICON_HEIGHT / 2;
+	DrawIcon (hdc, left, top, hIcon);
+}
+
+//Let define a ShowTurn function to indicate the turns 
+void ShowTurn (HWND hwnd, HDC hdc)
+{
+	//Define a string to show the turns :
+	const WCHAR Turn1[] = L"Leeeeeeerrrrrrrrrrooooooyyyyy Jeeeeeekkkkkkkkiiiiiiinnn!";
+	const WCHAR Turn2[] = L"where2";
+
+	//define a pointer to point each constant variable .
+	const WCHAR* pTurn = NULL;
+
+	switch (Winner) //This is a global variable , so we can access it in any location of this server .
+	{
+	case 0: //continue  don't change anything of this function ,just break ; 
+		pTurn = (PlayerTurn == 1) ? Turn1 : Turn2;
+		break;
+	case 1: //Player1 wins,change the text to show the winner is player 1 
+		pTurn = L"The winner is Player 1";
+		break;
+	case 2: //Player2 wins 
+		pTurn = L"The winner is Player 2";
+		break;
+	case 3: //It's a draw !
+		pTurn = L"123";
+		break;
+	default:
+		break;
+	}
+
+	//Get the postion of where you wanna put your Turn indicator  
+	RECT rc;
+	if (NULL != pTurn && GetClientRect (hwnd, &rc))
+	{
+		//Modify the rectangle boundary to a smaller one 
+		rc.top = rc.bottom - 48;  //This indicates that the distance between the top and the bottom is 48 . and the bottom is the rectangle bottom .
+								  //So we can use the info we got to draw something on this location
+		FillRect (hdc, &rc, (HBRUSH)GetStockObject (GRAY_BRUSH));
+		DrawText (hdc, pTurn, lstrlen (pTurn), &rc, DT_CENTER);
+	}
+}
+
+LRESULT CALLBACK WndProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+
+	switch (message)
+	{
+	case WM_CREATE:
+	{
+		//create windows brush by calling corresponding API 
+		hbr1 = CreateSolidBrush (RGB (255, 0, 0));
+		hbr2 = CreateSolidBrush (RGB (0, 0, 255));
+		//Loading icon from resource using windows API 
+		hIcon1 = LoadIcon (hInst, MAKEINTRESOURCE (IDI_PLAYER1));
+		hIcon2 = LoadIcon (hInst, MAKEINTRESOURCE (IDI_PLAYER2));
+	}
+	break;
+	case WM_COMMAND:
+	{
+		int wmId = LOWORD (wParam);
+		// Parse the menu selections:
+		switch (wmId)
+		{
+		case ID_FILE_NEWGAME:
+		{
+			int ret = MessageBox (hWnd, _T ("this is the content box"), _T ("This is the title !"), MB_YESNO | MB_ICONQUESTION);
+			if (ret == IDYES)
+			{
+				PlayerTurn = 1;
+				ZeroMemory (GameBoard, sizeof (GameBoard));
+				ZeroMemory (winner, sizeof (winner));
+				Winner = 0;
+				InvalidateRect (hWnd, NULL, TRUE);
+				UpdateWindow (hWnd);
+			}
+		}
+		break;
+		case IDM_ABOUT:
+			DialogBox (hInst, MAKEINTRESOURCE (IDD_ABOUTBOX), hWnd, About);
+			break;
+		case IDM_EXIT:
+			DestroyWindow (hWnd);
+			break;
+		default:
+			return DefWindowProc (hWnd, message, wParam, lParam);
+		}
+	}
+	break;
+	//Make it visible to both messages handling 
+
+
+	//Size global message 
+	case WM_GETMINMAXINFO:
+	{
+		MINMAXINFO* pMinMaxInfo = (MINMAXINFO*)lParam;   //This parameter we can get from the system 
+
+		pMinMaxInfo->ptMinTrackSize.x = CELL_SIZE * 3 + 50;
+		pMinMaxInfo->ptMinTrackSize.y = CELL_SIZE * 3 + 100;
+	}
+	break;
+
+	case WM_LBUTTONDOWN:
+	{
+		int xPos = GET_X_LPARAM (lParam);
+		int yPos = GET_Y_LPARAM (lParam);
+
+		//Only handle clicks if it is a player turn (i.e. 1 or 2)
+		if (0 == PlayerTurn)
+			break;
+		int index = GetNumberFromSection (hWnd, xPos, yPos);
+
+		HDC hdc = GetDC (hWnd);
+		if (NULL != hdc)
+		{
+			//WCHAR temp[100];
+
+			//wsprintf(temp, L"Index = %d", index);
+			//TextOut(hdc, xPos, yPos, temp, lstrlen(temp));
+
+			//Get cell dimension from its index
+			if (index != -1)
+			{
+				RECT rcCell;
+				if ((0 == GameBoard[index]) && GetCellRect (hWnd, index, &rcCell))
+				{
+					GameBoard[index] = PlayerTurn;
+
+					//	FillRect (hdc, &rcCell, (PlayerTurn == 1) ? hbr1 : hbr2);
+					//	DrawIcon (hdc, rcCell.left, rcCell.top, hIcon1);
+					//	Here we call the DrawInCenter function to draw the icon in the center of the target cell 
+					DrawInCenter (hdc, &rcCell, (PlayerTurn == 1) ? hIcon1 : hIcon2);
+
+
+					Winner = GetWinner (winner);
+					if (Winner == 1 || Winner == 2)
+					{
+
+						ShowWinner (hWnd, hdc);
+						MessageBox (hWnd,
+							(Winner == 1) ? L"Player 1 is the winner!" : L"Player 2 is the winner!",
+							L"You Win!",
+							MB_OK | MB_ICONINFORMATION);
+						//Here we have 3 cells needed to be painted . 
+
+						PlayerTurn = 0;
+					}
+					else if (3 == Winner)
+					{
+
+						MessageBox (hWnd,
+							L"Oh! No one wins this time!",
+							L"It's a draw!",
+							MB_OK | MB_ICONEXCLAMATION);
+						PlayerTurn = 0;
+					}
+					else if (0 == Winner)
+					{
+						PlayerTurn = (PlayerTurn == 1) ? 2 : 1;
+					}
+
+					//PlayerTurn = (PlayerTurn == 1) ? 2 : 1;
+				}
+
+			}
+
+			//As long as we click anywhere inside the window , it will show us the the indicator 
+
+			ShowTurn (hWnd, hdc);
+			ReleaseDC (hWnd, hdc);
+		}
+	}
+
+	break;
+
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint (hWnd, &ps);
+		// TODO: Add any drawing code that uses hdc here...
+		//I'm gonna draw an rectangular here ! 
+		RECT rc;
+		if (GetGameBoarderRec (hWnd, &rc))
+		{
+			const WCHAR Player1[] = L"Player 1";
+			const WCHAR Player2[] = L"Player 2";
+
+			SetBkMode (hdc, TRANSPARENT);  //set the BeginPaint hdc to transparent 
+			SetTextColor (hdc, RGB (255, 0, 0));
+			TextOut (hdc, 16, 16, Player1, ARRAYSIZE (Player1));
+			//create RECT structure to get the client area size
+
+			RECT rcClient;
+
+			if (GetClientRect (hWnd, &rcClient))
+			{
+				SetTextColor (hdc, RGB (0, 255, 0));
+				TextOut (hdc, rcClient.right - 72, 16, Player2, ARRAYSIZE (Player2));
+			}
+
+			Rectangle (hdc, rc.left, rc.top, rc.right, rc.bottom);
+			for (int i = 0; i < 4; i++)
+			{
+				//Draw vertical lines  
+				DrawLine (hdc, rc.left + i* CELL_SIZE, rc.top, rc.left + i*CELL_SIZE, rc.bottom);
+				//Draw horizonal lines 
+				DrawLine (hdc, rc.left, rc.top + i* CELL_SIZE, rc.right, rc.top + i* CELL_SIZE);
+			}
+			//Draw All occupied cells 
+			RECT rcCell;
+			for (int i = 0; i < 9; i++)
+			{
+
+				if ((GameBoard[i] != 0) && GetCellRect (hWnd, i, &rcCell))
+				{
+					//	FillRect (hdc, &rcCell, (GameBoard[i] == 1) ? hbr1 : hbr2);
+					DrawInCenter (hdc, &rcCell, (GameBoard[i] == 1) ? hIcon1 : hIcon2);
+					PlayerTurn = (PlayerTurn == 1) ? 1 : 2;
+				}
+
+			}
+
+		}
+
+		ShowTurn (hWnd, hdc);
+
+		EndPaint (hWnd, &ps);
+	}
+	break;
+	case WM_DESTROY:
+		DeleteObject (hbr1);
+		DeleteObject (hbr2);
+		DeleteObject (hIcon1);
+		DeleteObject (hIcon2);
+		PostQuitMessage (0);
+		break;
+	default:
+		return DefWindowProc (hWnd, message, wParam, lParam);
+	}
+
+	return 0;
+
+}
+// Message handler for about box.
+INT_PTR CALLBACK About (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+
+	UNREFERENCED_PARAMETER (lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD (wParam) == IDOK || LOWORD (wParam) == IDCANCEL)
+		{
+			EndDialog (hDlg, LOWORD (wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
+}
+
+
+int APIENTRY wWinMain (_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR    lpCmdLine,
+	_In_ int       nCmdShow)
+{
+	UNREFERENCED_PARAMETER (hPrevInstance);
+	UNREFERENCED_PARAMETER (lpCmdLine);
+
+	// TODO: Place code here. 
+
+	// Initialize global strings
+	LoadStringW (hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+	LoadStringW (hInstance, IDC_WIN32PROJECT1, szWindowClass, MAX_LOADSTRING);
+	MyRegisterClass (hInstance);
+
+	// Perform application initialization:
+	if (!InitInstance (hInstance, nCmdShow))
+	{
+		return FALSE;
+	}
+
+	HACCEL hAccelTable = LoadAccelerators (hInstance, MAKEINTRESOURCE (IDC_WIN32PROJECT1));
+
+	MSG msg;
+
+	// Main message loop:
+	while (GetMessage (&msg, nullptr, 0, 0))
+	{
+		if (!TranslateAccelerator (msg.hwnd, hAccelTable, &msg))
+		{
+			TranslateMessage (&msg);
+			DispatchMessage (&msg);
+		}
+	}
+
+	return (int)msg.wParam;
+}
+
